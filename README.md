@@ -1,8 +1,21 @@
-# Murmur
+<h1 align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/media/header-dark.svg">
+    <img src="docs/media/header-light.svg" alt="Murmur: on-device clinical visit scribe" width="460">
+  </picture>
+</h1>
 
 Murmur is an iPhone app for doctors. It records a clinical visit, transcribes it and drafts a structured SOAP note, all **on the device**, with the [QVAC SDK](https://github.com/tetherto/qvac) (`@qvac/sdk` 0.22).
 
 The draft **only documents what was said** in the visit. Murmur doesn't diagnose and doesn't recommend tests or treatment. Advice the model adds anyway is removed before the clinician sees the note (see [Safety design](#safety-design)).
+
+## Demo
+
+<p align="center">
+  <img src="docs/media/demo.gif" alt="Four panels: the clinician confirms recording consent, records a short visit, the device transcribes it and writes the note, then the SOAP note is reviewed and copied." width="640">
+</p>
+
+A 39-second walkthrough with a fictional patient: consent, recording, on-device processing, and review of the SOAP note. Everything runs offline on the device.
 
 ## How it works
 
@@ -65,7 +78,7 @@ src/note/           SOAP parsing and guardrails (pure)
 src/storage/        on-device visit persistence
 src/pipeline.ts     record → transcript → note orchestration with live progress
 __tests__/          Jest tests for WAV, SOAP parsing and guardrails
-docs/               role-play script for on-device testing
+docs/               role-play script for on-device testing; media/ holds the logo and demo GIF
 ```
 
 ## Checks
