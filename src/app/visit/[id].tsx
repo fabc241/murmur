@@ -67,7 +67,9 @@ function ProcessingView({ visit, progress }: { visit: Visit; progress: PipelineP
       headline = 'Loading the note model…';
       pct = progress.pct;
     } else {
-      headline = progress.content ? `${progress.pass}…` : 'Reading the transcript…';
+      const secs = Math.round(progress.elapsedMs / 1000);
+      const rate = secs > 0 ? `, ${(progress.tokens / secs).toFixed(1)} tokens/s` : '';
+      headline = `${progress.content ? progress.pass : 'Reviewing the transcript'}… ${progress.tokens} tokens in ${formatDuration(progress.elapsedMs)}${rate}`;
     }
   }
   const streaming = progress?.stage === 'note' && progress.phase === 'generating' ? progress : null;
@@ -189,7 +191,7 @@ function NoteView({ visit }: { visit: Visit }) {
 
 // --- Transcript ---------------------------------------------------------------------
 
-function TranscriptView({ visit }: { visit: Visit }) {
+function TranscriptView({ visit, onRegenerate }: { visit: Visit; onRegenerate: () => void }) {
   const c = useColors();
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(visit.transcript ?? '');
@@ -200,7 +202,10 @@ function TranscriptView({ visit }: { visit: Visit }) {
   };
 
   const regenerate = () => {
-    const run = () => regenerateNote(visit.id);
+    const run = () => {
+      onRegenerate();
+      regenerateNote(visit.id);
+    };
     if (visit.noteEdited) {
       Alert.alert('Write a new note?', 'Your edits to the current note will be replaced.', [
         { text: 'Cancel', style: 'cancel' },
@@ -326,7 +331,11 @@ export default function VisitScreen() {
             {visit.error && <Text style={[type.body, { color: c.danger }]}>{visit.error}</Text>}
             <Button
               label={visit.status === 'error' ? 'Retry' : 'Process visit'}
-              onPress={() => (visit.transcript === undefined ? processVisit(visit.id) : regenerateNote(visit.id))}
+              onPress={() => {
+                setTab('note');
+                if (visit.transcript === undefined) processVisit(visit.id);
+                else regenerateNote(visit.id);
+              }}
             />
             {visit.transcript !== undefined && (
               <Button variant="quiet" label="View transcript" onPress={() => setTab('transcript')} />
@@ -351,7 +360,7 @@ export default function VisitScreen() {
                 </Pressable>
               ))}
             </View>
-            {tab === 'note' && visit.note ? <NoteView key={visit.noteGeneratedAt} visit={visit} /> : <TranscriptView visit={visit} />}
+            {tab === 'note' && visit.note ? <NoteView key={visit.noteGeneratedAt} visit={visit} /> : <TranscriptView visit={visit} onRegenerate={() => setTab('note')} />}
           </>
         )}
 

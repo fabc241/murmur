@@ -14,17 +14,27 @@ import {
 } from './prompts';
 import { CancelledError, type CancelToken } from './transcribe';
 
-// Thinking models spend many tokens reasoning before answering (model card: keep predict >= 1500).
-const PREDICT_TOKENS = LLM_CONTEXT_TOKENS >= 8192 ? 3072 : 2048;
-const PROMPT_OVERHEAD_TOKENS = 700; // system prompt + chat template + safety margin
+// Reasoning is capped so the model must move on to the note: unbounded, MedPsy restated the
+// whole transcript and prompt in its reasoning and ran for 20+ minutes on an iPhone 13.
+const REASONING_BUDGET = 512;
+const PREDICT_TOKENS = REASONING_BUDGET + (LLM_CONTEXT_TOKENS >= 8192 ? 1536 : 1024);
+const PROMPT_OVERHEAD_TOKENS = 400; // system prompt + chat template + safety margin
 const CHARS_PER_TOKEN = 3.5; // conservative for English clinical speech
 const MAX_TRANSCRIPT_CHARS = Math.floor((LLM_CONTEXT_TOKENS - PREDICT_TOKENS - PROMPT_OVERHEAD_TOKENS) * CHARS_PER_TOKEN);
 
-const SAMPLING = { temp: 0.3, top_p: 0.95, top_k: 20, predict: PREDICT_TOKENS } as const;
+const SAMPLING = { temp: 0.3, top_p: 0.95, top_k: 20, predict: PREDICT_TOKENS, reasoning_budget: REASONING_BUDGET };
 
 export type NoteProgress =
   | { phase: 'loading'; pct: number }
-  | { phase: 'generating'; pass: string; content: string; thinking: string };
+  | {
+      phase: 'generating';
+      pass: string;
+      content: string;
+      thinking: string;
+      /** Streamed deltas so far; llama.cpp emits about one token per delta. */
+      tokens: number;
+      elapsedMs: number;
+    };
 
 export type NoteResult = {
   note: SoapNote;
@@ -52,8 +62,10 @@ async function runCompletion(
       generationParams: reasoningBudget === undefined ? SAMPLING : { ...SAMPLING, reasoning_budget: reasoningBudget },
     });
     token.requestId = run.requestId;
+    const startedAt = Date.now();
     let content = '';
     let thinking = '';
+    let tokens = 0;
     let stopReason: string | undefined;
     try {
       for await (const event of run.events) {
@@ -64,10 +76,17 @@ async function runCompletion(
           if (event.stopReason === 'error' && 'error' in event) throw new Error(event.error.message);
         }
         if (event.type === 'contentDelta' || event.type === 'thinkingDelta') {
-          onProgress({ phase: 'generating', pass, content, thinking });
+          tokens++;
+          onProgress({ phase: 'generating', pass, content, thinking, tokens, elapsedMs: Date.now() - startedAt });
         }
       }
       const final = await run.final;
+      const st = final.stats;
+      console.log(
+        `[Murmur] ${pass}: ${st?.generatedTokens ?? tokens} tokens in ${((Date.now() - startedAt) / 1000).toFixed(0)} s, ` +
+          `${st?.tokensPerSecond?.toFixed(1) ?? '?'} tok/s, prompt ${st?.promptTokens ?? '?'} tokens at ` +
+          `${st?.promptTokensPerSecond?.toFixed(0) ?? '?'} tok/s, backend ${st?.backendDevice ?? '?'}, stop ${final.stopReason ?? stopReason}`,
+      );
       return {
         content: stripThinking(final.contentText ?? content),
         thinking: (final.thinkingText ?? thinking).trim(),

@@ -150,6 +150,15 @@ export function checkStatement(
   return null;
 }
 
+const NOTHING_RE =
+  /^(?:no|none|nothing)\b[^.]*\b(?:documented|mentioned|discussed|provided|reported|stated|recorded|noted|given|available|performed)\b/i;
+
+/** Statements that only say a section is empty, in whatever words the model chose. */
+export function isNothingStatement(statement: string): boolean {
+  const body = statement.replace(/^\s*(?:[-*•]|\d+[.)])\s+/, '').replace(/["“”]/g, '').trim();
+  return /\bnot discussed\b/i.test(body) || NOTHING_RE.test(body);
+}
+
 const STRICT_SECTIONS = new Set<string>(['assessment', 'plan']);
 
 export function applyGuardrails(note: SoapNote, transcript: string): GuardrailResult {
@@ -175,6 +184,11 @@ export function applyGuardrails(note: SoapNote, transcript: string): GuardrailRe
       if (ok.length) kept.push(ok.join(' '));
     }
     const text = kept.join('\n').replace(/\n{3,}/g, '\n\n').trim();
+    // "No physical findings documented in transcript; "Not discussed."" is just an empty section.
+    if (text && splitStatements(text).every(isNothingStatement)) {
+      result[section] = NOT_DISCUSSED;
+      continue;
+    }
     // A bullet list whose items were all removed leaves a dangling label like "Medications:".
     result[section] = text && !/^[^\n]*:\s*$/.test(text) ? text : NOT_DISCUSSED;
   }

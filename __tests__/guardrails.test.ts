@@ -71,6 +71,30 @@ describe('applyGuardrails', () => {
   });
 });
 
+describe('real visit: headache, iPhone 13 run', () => {
+  const MARIO =
+    "Hi uh Mario um how are you? Hi Doc I'm not okay I have a terrible headache Uh when uh does it start Mario and um uh did you take uh some medicine or did you wait to come to the visit? Four days ago I didn't take anything I was waiting but um it was associated with vomits and I can't sleep, I can't eat. Okay Marion we will do some exams and we will understand what uh it happens. Um Okay Doc thanks.";
+
+  it('removes paraphrases that add an exam and a discussion nobody mentioned', () => {
+    const { note: out, removed } = applyGuardrails(
+      note({ plan: '- Clinician stated: We will conduct a physical examination and discuss potential causes.' }),
+      MARIO,
+    );
+    expect(out.plan).toBe(NOT_DISCUSSED);
+    expect(removed).toHaveLength(1);
+  });
+
+  it('keeps the clinician quoted verbatim', () => {
+    const plan = '- Clinician stated: "we will do some exams and we will understand what it happens"';
+    expect(applyGuardrails(note({ plan }), MARIO).note.plan).toBe(plan);
+  });
+
+  it('collapses "nothing documented" filler to Not discussed', () => {
+    const { note: out } = applyGuardrails(note({ objective: '- No physical findings documented in transcript; "Not discussed."' }), MARIO);
+    expect(out.objective).toBe(NOT_DISCUSSED);
+  });
+});
+
 describe('splitStatements', () => {
   it('splits bullets and sentences, keeping decimals intact', () => {
     expect(splitStatements('- Temp 38.2 today. Throat red.\nNo rash')).toEqual(['- Temp 38.2 today.', 'Throat red.', 'No rash']);
