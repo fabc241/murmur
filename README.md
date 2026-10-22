@@ -97,3 +97,7 @@ For an end-to-end check on a device, follow [docs/sample-visit-script.md](docs/s
 - **Keep Murmur open while processing.** Transcription and note writing run in the foreground; iOS pauses them in the background.
 - **English UI and notes.** Parakeet v3 transcribes 25 European languages, and the note is written in English.
 - **Data protection.** For production, add Face ID app lock and the `NSFileProtectionComplete` data-protection entitlement, and exclude visit data from iCloud backup.
+
+## License
+
+[MIT](LICENSE) © 2026 [fabc241](https://github.com/fabc241)
