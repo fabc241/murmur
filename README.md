@@ -42,6 +42,12 @@ npx expo prebuild --platform ios   # links QVAC's native addons; re-run after ev
 npx expo run:ios --device          # pick your iPhone; set your signing team when Xcode asks
 ```
 
+`run:ios --device` makes a **Debug** build. It loads JavaScript from the Metro server on your Mac, so it only works when the iPhone is on the same Wi-Fi network. To use Murmur anywhere, including offline, install a **Release** build. It contains the JavaScript bundle and doesn't need the Mac:
+
+```bash
+npm run ios:release                # Release build + install on the connected iPhone (scripts/ios-release.sh)
+```
+
 On first launch, Murmur downloads both models with a progress screen. Use Wi-Fi for this. After that, the app works offline.
 
 > **Paths with spaces.** Two Expo SDK 54 build scripts break when the project path contains a space (this project lives in `…/claude code/…`). Both are fixed in the repo:
